@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>烏賊対蛸</title>
+
+<style>
+body{
+margin:0;
+overflow:hidden;
+background:#001b44;
+color:white;
+font-family:"Yu Gothic","Meiryo",sans-serif;
+text-align:center;
+}
+
+h1{
+margin:10px;
+}
+
+#ui{
+font-size:24px;
+margin-bottom:10px;
+}
+
+canvas{
+display:block;
+margin:auto;
+border:2px solid white;
+background:linear-gradient(#0066aa,#001b44);
+}
+
+#msg{
+font-size:42px;
+color:gold;
+margin-top:10px;
+font-weight:bold;
+}
+</style>
+</head>
+<body>
+
+<h1>烏賊 対 蛸</h1>
+
+<div id="ui">
+得点 <span id="score">0</span>
+　
+体力 <span id="hp">10</span>
+　
+残時 <span id="time">30</span>
+</div>
+
+<canvas id="game" width="1000" height="600"></canvas>
+
+<div id="msg"></div>
+
+<script>
+
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+
+const scoreEl=document.getElementById("score");
+const hpEl=document.getElementById("hp");
+const timeEl=document.getElementById("time");
+const msg=document.getElementById("msg");
+
+let score=0;
+let gameOver=false;
+let time=30;
+
+const keys={};
+
+document.addEventListener("keydown",e=>{
+keys[e.code]=true;
+
+if(e.code==="Space" && !gameOver){
+shoot();
+}
+});
+
+document.addEventListener("keyup",e=>{
+keys[e.code]=false;
+});
+
+const player={
+x:480,
+y:520,
+hp:10,
+speed:8
+};
+
+const beams=[];
+const enemies=[];
+const enemyShots=[];
+
+let bigOctopus=null;
+let rainbowOctopus=null;
+
+function shoot(){
+
+for(let i=-1;i<=1;i++){
+
+beams.push({
+x:player.x+10,
+y:player.y,
+vx:i*1.5,
+vy:-12
+});
+
+}
+}
+
+function spawnEnemy(){
+
+if(bigOctopus || rainbowOctopus) return;
+
+enemies.push({
+x:Math.random()*950,
+y:-20,
+speed:4+Math.random()*3
+});
+}
+
+setInterval(()=>{
+if(!gameOver) spawnEnemy();
+},450);
+
+function hit(a,b){
+
+return(
+a.x<b.x+b.w &&
+a.x+a.w>b.x &&
+a.y<b.y+b.h &&
+a.y+a.h>b.y
+);
+}
+
+function update(){
+
+if(keys["ArrowLeft"]) player.x-=player.speed;
+if(keys["ArrowRight"]) player.x+=player.speed;
+
+player.x=Math.max(0,Math.min(950,player.x));
+
+for(let i=beams.length-1;i>=0;i--){
+
+beams[i].x+=beams[i].vx;
+beams[i].y+=beams[i].vy;
+
+if(beams[i].y<0){
+beams.splice(i,1);
+}
+}
+
+for(let i=enemies.length-1;i>=0;i--){
+
+const e=enemies[i];
+
+e.y+=e.speed;
+
+if(e.y>620){
+
+enemies.splice(i,1);
+player.hp--;
+continue;
+}
+
+for(let j=beams.length-1;j>=0;j--){
+
+if(
+beams[j].x<e.x+40 &&
+beams[j].x+8>e.x &&
+beams[j].y<e.y+40 &&
+beams[j].y+20>e.y
+){
+
+enemies.splice(i,1);
+beams.splice(j,1);
+
+score+=10;
+break;
+}
+}
+}
+
+if(score>=100 && !bigOctopus && !rainbowOctopus){
+
+bigOctopus={
+x:400,
+y:100,
+hp:15,
+dir:5
+};
+}
+
+if(score>=250 && !rainbowOctopus){
+
+bigOctopus=null;
+
+rainbowOctopus={
+x:350,
+y:60,
+hp:40,
+dir:6
+};
+}
+
+if(bigOctopus){
+
+bigOctopus.x+=bigOctopus.dir;
+
+if(bigOctopus.x<0 || bigOctopus.x>800){
+bigOctopus.dir*=-1;
+}
+
+for(let i=beams.length-1;i>=0;i--){
+
+if(
+beams[i].x>bigOctopus.x &&
+beams[i].x<bigOctopus.x+180 &&
+beams[i].y>bigOctopus.y &&
+beams[i].y<bigOctopus.y+120
+){
+
+beams.splice(i,1);
+bigOctopus.hp--;
+}
+}
+
+if(bigOctopus.hp<=0){
+
+score+=100;
+bigOctopus=null;
+}
+}
+
+if(rainbowOctopus){
+
+rainbowOctopus.x+=rainbowOctopus.dir;
+
+if(
+rainbowOctopus.x<0 ||
+rainbowOctopus.x>750
+){
+rainbowOctopus.dir*=-1;
+}
+
+if(Math.random()<0.05){
+
+enemyShots.push({
+x:rainbowOctopus.x+120,
+y:rainbowOctopus.y+120
+});
+}
+
+for(let i=beams.length-1;i>=0;i--){
+
+if(
+beams[i].x>rainbowOctopus.x &&
+beams[i].x<rainbowOctopus.x+250 &&
+beams[i].y>rainbowOctopus.y &&
+beams[i].y<rainbowOctopus.y+180
+){
+
+beams.splice(i,1);
+rainbowOctopus.hp--;
+}
+}
+
+if(rainbowOctopus.hp<=0){
+
+gameOver=true;
+msg.innerHTML="天下泰平";
+}
+}
+
+for(let i=enemyShots.length-1;i>=0;i--){
+
+enemyShots[i].y+=8;
+
+if(
+enemyShots[i].x>player.x &&
+enemyShots[i].x<player.x+40 &&
+enemyShots[i].y>player.y &&
+enemyShots[i].y<player.y+40
+){
+
+enemyShots.splice(i,1);
+player.hp--;
+continue;
+}
+
+if(enemyShots[i].y>600){
+enemyShots.splice(i,1);
+}
+}
+
+scoreEl.textContent=score;
+hpEl.textContent=player.hp;
+
+if(player.hp<=0){
+
+gameOver=true;
+msg.innerHTML="敗北";
+}
+}
+
+function drawBackground(){
+
+ctx.fillStyle="rgba(255,255,255,0.15)";
+ctx.font="24px serif";
+
+for(let i=0;i<15;i++){
+
+ctx.fillText(
+"海",
+i*70+(Date.now()/30)%70,
+100+(i%5)*100
+);
+
+ctx.fillText(
+"波",
+i*65,
+50+(i%6)*90
+);
+
+}
+}
+
+function draw(){
+
+ctx.clearRect(0,0,1000,600);
+
+drawBackground();
+
+ctx.font="48px serif";
+ctx.fillStyle="#99ffff";
+ctx.fillText("烏賊",player.x,player.y);
+
+for(const b of beams){
+
+ctx.shadowBlur=20;
+ctx.shadowColor="#00ffff";
+
+ctx.fillStyle="#00ffff";
+ctx.font="28px serif";
+ctx.fillText("閃",b.x,b.y);
+
+ctx.shadowBlur=0;
+}
+
+ctx.font="38px serif";
+ctx.fillStyle="red";
+
+for(const e of enemies){
+
+ctx.fillText("蛸",e.x,e.y);
+e.w=40;
+e.h=40;
+}
+
+if(bigOctopus){
+
+ctx.fillStyle="violet";
+ctx.font="90px serif";
+
+ctx.fillText(
+"大蛸",
+bigOctopus.x,
+bigOctopus.y+90
+);
+
+ctx.font="28px serif";
+ctx.fillText(
+"生命:"+bigOctopus.hp,
+bigOctopus.x,
+bigOctopus.y-10
+);
+}
+
+if(rainbowOctopus){
+
+const colors=[
+"red",
+"orange",
+"yellow",
+"green",
+"cyan",
+"blue",
+"violet"
+];
+
+ctx.fillStyle=
+colors[Math.floor(Date.now()/100)%7];
+
+ctx.font="100px serif";
+
+ctx.fillText(
+"虹色蛸",
+rainbowOctopus.x,
+rainbowOctopus.y+100
+);
+
+ctx.fillStyle="white";
+ctx.font="30px serif";
+
+ctx.fillText(
+"生命:"+rainbowOctopus.hp,
+rainbowOctopus.x,
+rainbowOctopus.y-15
+);
+}
+
+ctx.fillStyle="black";
+ctx.font="30px serif";
+
+for(const s of enemyShots){
+
+ctx.fillText("墨",s.x,s.y);
+}
+}
+
+function loop(){
+
+if(gameOver) return;
+
+update();
+draw();
+
+requestAnimationFrame(loop);
+}
+
+loop();
+
+const timer=setInterval(()=>{
+
+if(gameOver){
+
+clearInterval(timer);
+return;
+}
+
+time--;
+
+timeEl.textContent=time;
+
+if(time<=0){
+
+gameOver=true;
+
+if(score>=250){
+msg.innerHTML="勇者";
+}else{
+msg.innerHTML="時切";
+}
+}
+
+},1000);
+
+</script>
+
+</body>
+</html>
